@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Facebook Scraper</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        /* Reset and basic styles */
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        h1 {
+            color: #1877f2;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        /* Comments */
+        .comment {
+            padding: 15px;
+            border-bottom: 1px solid #e0e0e0;
+            position: relative;
+            transition: background-color 0.3s;
+        }
+
+        .comment:hover {
+            background-color: #f7f7f7;
+        }
+
+        .comment p {
+            margin: 0;
+            color: #333;
+            word-wrap: break-word;
+            line-height: 1.6;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .comment-buttons {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+        }
+
+        .comment button {
+            padding: 8px 12px;
+            margin-left: 10px;
+            border: none;
+            background-color: #1877f2;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .comment button:hover {
+            background-color: #145dbf;
+        }
+
+        .fa {
+            margin-right: 5px;
+        }
+
+        /* Reply Popup */
+        .reply-popup {
+            position: absolute;
+            top: calc(100% + 10px);
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            background-color: #ffffff;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            display: none;
+            z-index: 10;
+        }
+
+        .reply-popup input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+
+        .reply-popup button {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            background-color: #1877f2;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .reply-popup button:hover {
+            background-color: #145dbf;
+        }
+
+        /* Notification */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            display: none;
+            animation: fadeOut 3s forwards;
+        }
+
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            100% { opacity: 0; display: none; }
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .reply-popup {
+                width: calc(100% - 30px);
+                left: 50%;
+                transform: translateX(-50%);
+                margin-left: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Facebook Scraper</h1>
+        <div id="comments-list"></div>
+    </div>
+
+    <div id="notification" class="notification"></div>
+
+    <script>
+        async function fetchComments() {
+            try {
+                let response = await fetch('/fetch_comments', {
+                    method: 'POST'
+                });
+                let data = await response.json();
+                if (data.status === 'success') {
+                    displayComments(data.comments);
+                } else {
+                    console.error('Error fetching comments:', data.message);
+                }
+            } catch (error) {
+                console.error('Error fetching comments:', error);
+            }
+        }
+
+        function displayComments(comments) {
+            let commentsList = document.getElementById('comments-list');
+            commentsList.innerHTML = '';
+            comments.forEach(comment => {
+                let commentElement = document.createElement('div');
+                commentElement.classList.add('comment');
+
+                if (comment.is_hidden) {
+                    commentElement.classList.add('hidden-comment');
+                }
+
+                let commentText = document.createElement('p');
+                commentText.textContent = `${comment.from.name}: ${comment.message}`;
+                commentElement.appendChild(commentText);
+
+                let commentActions = document.createElement('div');
+                commentActions.classList.add('comment-buttons');
+
+                let deleteButton = document.createElement('button');
+                deleteButton.innerHTML = '<i class="fas fa-trash-alt"></i> Delete';
+                deleteButton.onclick = () => deleteComment(comment.id);
+                commentActions.appendChild(deleteButton);
+
+                let hideButton = document.createElement('button');
+                hideButton.textContent = comment.is_hidden ? 'Unhide' : 'Hide';
+                hideButton.onclick = () => toggleHideComment(comment.id, !comment.is_hidden);
+                commentActions.appendChild(hideButton);
+
+                let replyButton = document.createElement('button');
+                replyButton.innerHTML = '<i class="fas fa-reply"></i> Reply';
+                replyButton.onclick = () => toggleReplyPopup(commentElement, comment.id, comment.from.name);
+                commentActions.appendChild(replyButton);
+
+                let replyPopup = document.createElement('div');
+                replyPopup.classList.add('reply-popup');
+
+                let replyInput = document.createElement('input');
+                replyInput.type = 'text';
+                replyInput.placeholder = 'Write a reply...';
+                replyPopup.appendChild(replyInput);
+
+                let sendButton = document.createElement('button');
+                sendButton.textContent = 'Send';
+                sendButton.onclick = () => replyToComment(comment.id, replyInput.value);
+                replyPopup.appendChild(sendButton);
+
+                commentElement.appendChild(replyPopup);
+                commentElement.appendChild(commentActions);
+
+                commentsList.appendChild(commentElement);
+            });
+        }
+
+        async function deleteComment(commentId) {
+            try {
+                let response = await fetch('/delete_comment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ comment_id: commentId })
+                });
+                let data = await response.json();
+                showNotification('Deleted comment successfully', 'success');
+                fetchComments();
+            } catch (error) {
+                console.error('Error deleting comment:', error);
+                showNotification('Error deleting comment. Please try again.', 'error');
+            }
+        }
+
+        async function toggleHideComment(commentId, isHidden) {
+            try {
+                let url = isHidden ? '/hide_comment' : '/unhide_comment';
+                let response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ comment_id: commentId, is_hidden: isHidden })
+                });
+                let data = await response.json();
+                if (isHidden) {
+                    showNotification('Comment hidden successfully', 'success');
+                } else {
+                    showNotification('Comment unhidden successfully', 'success');
+                }
+                fetchComments();
+            } catch (error) {
+                console.error('Error hiding/unhiding comment:', error);
+                showNotification('Error hiding/unhiding comment. Please try again.', 'error');
+            }
+        }
+
+        async function replyToComment(commentId, replyMessage) {
+            if (replyMessage.trim().length === 0) {
+                showNotification('Please enter a reply message', 'error');
+                return;
+            }
+            try {
+                let response = await fetch('/reply_comment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ comment_id: commentId, message: replyMessage })
+                });
+                let data = await response.json();
+                showNotification('Replied to comment successfully', 'success');
+                fetchComments();
+            } catch (error) {
+                console.error('Error replying to comment:', error);
+                showNotification('Error replying to comment. Please try again.', 'error');
+            }
+        }
+
+        function toggleReplyPopup(commentElement, commentId, recipientName) {
+            let replyPopup = commentElement.querySelector('.reply-popup');
+            if (replyPopup.style.display === 'block') {
+                replyPopup.style.display = 'none';
+            } else {
+                document.querySelectorAll('.reply-popup').forEach(popup => {
+                    popup.style.display = 'none';
+                });
+                replyPopup.style.display = 'block';
+            }
+        }
+
+        function showNotification(message, type) {
+            let notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.style.backgroundColor = type === 'success' ? '#4CAF50' : '#f44336';
+            notification.style.display = 'block';
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 3000);
+        }
+
+        window.onload = fetchComments;
+    </script>
+</body>
+</html>
