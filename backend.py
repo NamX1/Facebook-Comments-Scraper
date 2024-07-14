@@ -4,8 +4,8 @@ import requests
 app = Flask(__name__)
 
 # Replace with your actual access token and page ID
-ACCESS_TOKEN = 'EAAeVZBkw52iMBO0YcwpeM7WSUVLCDuwZCz2U0YrQnQh3hfR8ENKZC725W3XCEgQZBSwFpBEQR2ERjBTG4lQZBAmfdZB8g6qANZCBi1UKuiFTWabNL5ZCeaw712ZAZCdj8Mk9s80ZAKOVdcdgw0JBA8TnZAeI9bkZAu1jTUn4gAvo6AIK6y6H2ZBinzpQRGB1kGILXypiO9JiwGOJSM70U5ZCPKZCOITWjfqz'
-PAGE_ID = '375167915678217'
+ACCESS_TOKEN = 'YOUR_ACCESS_TOKEN'
+PAGE_ID = 'YOUR_FACEBOOK_PAGE_ID'
 
 def fetch_comments_from_facebook():
     comments = []
